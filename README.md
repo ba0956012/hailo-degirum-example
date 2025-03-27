@@ -1,0 +1,1 @@
+# hailo-degirum-example
