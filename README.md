@@ -15,4 +15,6 @@ pip install degirum degirum_tools opencv-python
 ```
 
 # Run
-python 
+```bash
+python example.py 
+```
