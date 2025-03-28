@@ -4,7 +4,7 @@ import cv2
 from picamera2 import Picamera2
 
 # zoo_url = "degirum/hailo"
-zoo_url = "/home/senao/Respository/hailo-rpi5-examples/tests/model/scrfd.json"
+zoo_url = "./model/scrfd.json"
 token = ""  # Optional: fill in if needed
 device_type = "HAILORT/HAILO8L"
 
