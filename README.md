@@ -16,5 +16,5 @@ pip install -r requirements_inference.txt
 
 # Run
 ```bash
-python example.py 
+python fr.py 
 ```
