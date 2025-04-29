@@ -2,6 +2,7 @@ import degirum as dg
 import degirum_tools
 import cv2
 from picamera2 import Picamera2
+import traceback
 
 # zoo_url = "degirum/hailo"
 zoo_url = "./model/scrfd.json"
@@ -23,7 +24,41 @@ model = dg.load_model(
     token=token,
     device_type=device_type,
 )
-print(model.model_info)
+
+
+face_rec_model_name = "arcface_mobilefacenet"
+face_rec_model_name = "arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1"
+# Load the face recognition model
+face_rec_model = dg.load_model(
+    model_name=face_rec_model_name,
+    inference_host_address="@local",
+    # zoo_url="degirum/models_hailort"
+    zoo_url = "./model/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1.json"
+)
+print(dir(face_rec_model))
+
+
+
+def display_images(images, title="Images", figsize=(15, 5)):
+    """
+    Display a list of images in a single row using Matplotlib.
+
+    Parameters:
+    - images (list): List of images (NumPy arrays) to display.
+    - title (str): Title for the plot.
+    - figsize (tuple): Size of the figure.
+    """
+    num_images = len(images)
+    fig, axes = plt.subplots(1, num_images, figsize=figsize)
+    if num_images == 1:
+        axes = [axes]  # Make it iterable for a single image
+    for ax, image in zip(axes, images):
+        image_rgb = image[:, :, ::-1]  # Convert BGR to RGB
+        ax.imshow(image_rgb)
+        ax.axis('off')
+    fig.suptitle(title, fontsize=16)
+    plt.tight_layout()
+    plt.show()
 
 picam2 = Picamera2()
 picam2.start()
@@ -42,6 +77,7 @@ with degirum_tools.Display("AI Camera") as output_display:
         # Convert the frame to RGB (if needed for your model)
         # Optional: Use a different color format if your model expects something else
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = rgb_frame
 
         # Run inference on the captured frame
         inference_result = model(rgb_frame)
@@ -63,11 +99,24 @@ with degirum_tools.Display("AI Camera") as output_display:
         
         break
         """
-        # Display the image overlay with the face detection results
-        # output_display.show_image(inference_result.image_overlay)
+        cropped_faces = []
+        for face in inference_result.results:
+            x1, y1, x2, y2 = map(int, face["bbox"])
+            cropped_face = rgb_frame[y1:y2, x1:x2]
+            cropped_faces.append(cropped_face) 
+        
+        # print(cropped_faces)
+        if cropped_faces:
+            face_embedding = face_rec_model(cropped_faces[0]).results[0]["data"][0]
+            # print(face_embedding)
+            cv2.imshow("Face Detection", cropped_faces[0])
+        else:
+        
+            # Display the image overlay with the face detection results
+            # output_display.show_image(inference_result.image_overlay)
 
-        # Display the frame in a window (optional, for debugging)
-        cv2.imshow("Face Detection", inference_result.image_overlay)
+            # Display the frame in a window (optional, for debugging)
+            cv2.imshow("Face Detection", inference_result.image_overlay)
 
         # Exit loop if 'x' or 'q' is pressed
         if cv2.waitKey(1) & 0xFF in [ord("x"), ord("q")]:
