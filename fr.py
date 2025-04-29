@@ -1,7 +1,8 @@
+import os
 import cv2
 import numpy as np
 from picamera2 import Picamera2
-from face_recognition.face_recognition_system import FaceRecognitionSystem
+from face_recognition.face_recognition_system import FaceRecognitionSystem, FaceRecognitionSchema
 from anti_spoof.face_anti_spoofing import AntiSpoof
 from utils.image_utils import increased_crop
 from dotenv import load_dotenv
@@ -138,8 +139,6 @@ while True:
         if confirm in ["", "c", "cancel"]:
             print("已取消新增。")
         else:
-            from face_recognition_system import FaceRecognitionSchema
-
             record = FaceRecognitionSchema.prepare_face_records(
                 [largest_face["embedding"]], confirm
             )

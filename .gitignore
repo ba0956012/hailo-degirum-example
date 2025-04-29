@@ -12,3 +12,4 @@ FaceAntiSpoofing.ipynb
 __init.py__
 *.ipynb_checkpoints
 *.log
+face_database/

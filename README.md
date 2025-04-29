@@ -11,7 +11,7 @@ This is a simple example demonstrating how to run inference using a `.hef` model
 ```bash 
 python3 -m venv --system-site-packages venv
 source venv/bin/activate
-pip install degirum degirum_tools opencv-python
+pip install -r requirements_inference.txt
 ```
 
 # Run

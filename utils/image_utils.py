@@ -1,3 +1,5 @@
+import cv2
+
 def increased_crop(img, bbox: tuple, bbox_inc: float = 1.5):
     # Crop face based on its bounding box
     real_h, real_w = img.shape[:2]

@@ -1,0 +1,12 @@
+degirum
+degirum_tools
+opencv-python
+torch
+torchvision
+numpy
+onnx
+onnxruntime
+pandas
+tqdm
+tensorboardX
+scikit-learn

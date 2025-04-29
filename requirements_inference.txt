@@ -1,0 +1,5 @@
+degirum==0.16.0
+degirum_tools==0.16.5
+opencv-python==4.11.0.86
+lancedb==0.22.0
+onnxruntime==1.21.1
