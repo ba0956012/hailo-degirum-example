@@ -86,3 +86,6 @@ class AttendanceManager:
         conn.close()
         print("已清空所有打卡紀錄。")
 
+if __name__ == "__main__":
+    attendance_manager = AttendanceManager(db_path='../attendance.db')
+    print(attendance_manager.get_summary())

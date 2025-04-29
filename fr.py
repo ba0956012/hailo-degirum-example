@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+from datetime import datetime, timedelta
 from picamera2 import Picamera2
 from face_recognition.face_recognition_system import FaceRecognitionSystem, FaceRecognitionSchema
 from anti_spoof.face_anti_spoofing import AntiSpoof
@@ -27,7 +28,7 @@ FACE_DB_URI = os.getenv("FACE_DB_URI", "./face_database")
 TABLE_NAME = os.getenv("TABLE_NAME", "face")
 SQL_URI = os.getenv("SQL_URI", "./attendance_database.db")
 
-ATTENDANCE_TIME_INTERVAL = int(os.getenv("ATTENDANCE_TIME_INTERVAL", 1))  # 分鐘
+ATTENDANCE_TIME_INTERVAL = int(os.getenv("ATTENDANCE_TIME_INTERVAL", 10)) 
 # 初始化 AntiSpoof 模型
 anti_spoof = AntiSpoof(MODEL_PATH)
 
@@ -49,7 +50,7 @@ attendance_manager = AttendanceManager(SQL_URI)
 picam2 = Picamera2()
 picam2.start()
 
-
+Attendance_time =  datetime.now()
 print("開始即時辨識，按 'n' 鍵新增新臉，'q' 鍵結束")
 
 while True:
@@ -92,7 +93,7 @@ while True:
             }
         )
 
-    if Attendance_time - datetime.now() > timedelta(minutes=ATTENDANCE_TIME_INTERVAL):
+    if datetime.now() - Attendance_time > timedelta(seconds=ATTENDANCE_TIME_INTERVAL):
         for info in face_infos:
             if info["identity"] != "Unknown":
                 attendance_manager.punch(info["identity"])
@@ -108,14 +109,14 @@ while True:
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
         pred = anti_spoof([increased_crop(frame, info["box"], bbox_inc=1.5)])
 
-        if np.argmax(pred) == 0 and pred[0][0][0] > ANTISPOOFING_SCORE
+        if np.argmax(pred) == 0 and pred[0][0][0] > ANTISPOOFING_SCORE:
             info["real_face"] = True
         else:
             info["real_face"] = False
 
         cv2.putText(
             frame,
-            f"{'Real' if info["real_face"] else 'Fake'} ({pred[0][0][0]:.2f})",
+            f"{'Real' if info['real_face'] else 'Fake'} ({pred[0][0][0]:.2f})",
             (x, y - 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,

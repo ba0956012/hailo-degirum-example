@@ -13,3 +13,4 @@ __init.py__
 *.ipynb_checkpoints
 *.log
 face_database/
+*.db
