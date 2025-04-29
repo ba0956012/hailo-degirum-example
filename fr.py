@@ -5,6 +5,7 @@ from picamera2 import Picamera2
 from face_recognition.face_recognition_system import FaceRecognitionSystem, FaceRecognitionSchema
 from anti_spoof.face_anti_spoofing import AntiSpoof
 from utils.image_utils import increased_crop
+from utils.attendance_manager import AttendanceManager
 from dotenv import load_dotenv
 
 
@@ -22,9 +23,11 @@ INFERENCE_HOST_ADDRESS = os.getenv("INFERENCE_HOST_ADDRESS", "@local")
 FACE_DET_ZOO_URL = os.getenv("FACE_DET_ZOO_URL", "./model/scfrd_10g/scrfd.json")
 FACE_REC_ZOO_URL = os.getenv("FACE_REC_ZOO_URL", "./model/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1.json")
 
-DB_URI = os.getenv("DB_URI", "./face_database")
+FACE_DB_URI = os.getenv("FACE_DB_URI", "./face_database")
 TABLE_NAME = os.getenv("TABLE_NAME", "face")
+SQL_URI = os.getenv("SQL_URI", "./attendance_database.db")
 
+ATTENDANCE_TIME_INTERVAL = int(os.getenv("ATTENDANCE_TIME_INTERVAL", 1))  # 分鐘
 # 初始化 AntiSpoof 模型
 anti_spoof = AntiSpoof(MODEL_PATH)
 
@@ -36,9 +39,11 @@ system = FaceRecognitionSystem(
     inference_host_address=INFERENCE_HOST_ADDRESS,
     face_det_zoo_url=FACE_DET_ZOO_URL,
     face_rec_zoo_url=FACE_REC_ZOO_URL,
-    db_uri=DB_URI,
+    db_uri=FACE_DB_URI,
     table_name=TABLE_NAME,
 )
+
+attendance_manager = AttendanceManager(SQL_URI)
 
 # 開啟攝影機
 picam2 = Picamera2()
@@ -49,7 +54,6 @@ print("開始即時辨識，按 'n' 鍵新增新臉，'q' 鍵結束")
 
 while True:
     frame = picam2.capture_array()
-
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     detected_faces = system.face_det_model(rgb_frame)
     frame = rgb_frame
@@ -84,21 +88,34 @@ while True:
                 "aligned_img": aligned_img,
                 "embedding": embedding,
                 "identity": identity,
-                "score": score,
+                "identity_score": score,
             }
         )
+
+    if Attendance_time - datetime.now() > timedelta(minutes=ATTENDANCE_TIME_INTERVAL):
+        for info in face_infos:
+            if info["identity"] != "Unknown":
+                attendance_manager.punch(info["identity"])
+                Attendance_time = datetime.now()
+                print(f"[打卡] 員工 {info['identity']} 打卡成功！")
 
     # 畫出辨識結果
     for info in face_infos:
         x, y, w, h = info["box"]
-        label = f"{info['identity']} ({info['score']:.2f})"
+        label = f"{info['identity']} ({info['identity_score']:.2f})"
         color = (0, 255, 0) if info["identity"] != "Unknown" else (0, 0, 255)
         cv2.rectangle(frame, (x, y), (w, h), color, 2)
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
         pred = anti_spoof([increased_crop(frame, info["box"], bbox_inc=1.5)])
+
+        if np.argmax(pred) == 0 and pred[0][0][0] > ANTISPOOFING_SCORE
+            info["real_face"] = True
+        else:
+            info["real_face"] = False
+
         cv2.putText(
             frame,
-            f"{'Real' if np.argmax(pred) == 0 and pred[0][0][0] > ANTISPOOFING_SCORE else 'Fake'} ({pred[0][0][0]:.2f})",
+            f"{'Real' if info["real_face"] else 'Fake'} ({pred[0][0][0]:.2f})",
             (x, y - 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
