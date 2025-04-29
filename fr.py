@@ -1,84 +1,42 @@
 import cv2
 import numpy as np
 from picamera2 import Picamera2
-from face_recognition_system import FaceRecognitionSystem
-from anti_spoof.FaceAntiSpoofing import AntiSpoof
-import argparse
+from face_recognition.face_recognition_system import FaceRecognitionSystem
+from anti_spoof.face_anti_spoofing import AntiSpoof
+from utils.image_utils import increased_crop
+from dotenv import load_dotenv
 
 
-def check_zero_to_one(value):
-    fvalue = float(value)
-    if fvalue <= 0 or fvalue >= 1:
-        raise argparse.ArgumentTypeError("%s is an invalid value" % value)
-    return fvalue
+load_dotenv()
 
+# 讀取參數
+MODEL_PATH = os.getenv("MODEL_PATH", "anti_spoof_models/AntiSpoofing_bin_1.5_128.onnx")
+RECOGNITION_SCORE = float(os.getenv("RECOGNITION_SCORE", 0.7))
+ANTISPOOFING_SCORE = float(os.getenv("ANTISPOOFING_SCORE", 0.0))
 
-p = argparse.ArgumentParser(description="Spoofing attack detection on videostream")
-p.add_argument(
-    "--input", "-i", type=str, default=None, help="Path to video for predictions"
-)
-p.add_argument(
-    "--output", "-o", type=str, default=None, help="Path to save processed video"
-)
-p.add_argument(
-    "--model_path",
-    "-m",
-    type=str,
-    default="anti_spoof_models/AntiSpoofing_bin_1.5_128.onnx",
-    help="Path to ONNX model",
-)
-p.add_argument(
-    "--threshold",
-    "-t",
-    type=check_zero_to_one,
-    default=0.5,
-    help="real face probability threshold above which the prediction is considered true",
-)
-args = p.parse_args()
-anti_spoof = AntiSpoof(args.model_path)
+FACE_DET_MODEL_NAME = os.getenv("FACE_DET_MODEL_NAME", "scrfd")
+FACE_REC_MODEL_NAME = os.getenv("FACE_REC_MODEL_NAME", "arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1")
+INFERENCE_HOST_ADDRESS = os.getenv("INFERENCE_HOST_ADDRESS", "@local")
 
+FACE_DET_ZOO_URL = os.getenv("FACE_DET_ZOO_URL", "./model/scfrd_10g/scrfd.json")
+FACE_REC_ZOO_URL = os.getenv("FACE_REC_ZOO_URL", "./model/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1.json")
 
-RECOGNITION_SCORE=0.7
-ANTISPOOFING_SCORE=0.0
+DB_URI = os.getenv("DB_URI", "./face_database")
+TABLE_NAME = os.getenv("TABLE_NAME", "face")
 
-
-def increased_crop(img, bbox: tuple, bbox_inc: float = 1.5):
-    # Crop face based on its bounding box
-    real_h, real_w = img.shape[:2]
-
-    x, y, w, h = bbox
-    w, h = w - x, h - y
-    l = max(w, h)
-
-    xc, yc = x + w / 2, y + h / 2
-    x, y = int(xc - l * bbox_inc / 2), int(yc - l * bbox_inc / 2)
-    x1 = 0 if x < 0 else x
-    y1 = 0 if y < 0 else y
-    x2 = real_w if x + l * bbox_inc > real_w else x + int(l * bbox_inc)
-    y2 = real_h if y + l * bbox_inc > real_h else y + int(l * bbox_inc)
-
-    img = img[y1:y2, x1:x2, :]
-    img = cv2.copyMakeBorder(
-        img,
-        y1 - y,
-        int(l * bbox_inc - y2 + y),
-        x1 - x,
-        int(l * bbox_inc) - x2 + x,
-        cv2.BORDER_CONSTANT,
-        value=[0, 0, 0],
-    )
-    return img
+# 初始化 AntiSpoof 模型
+anti_spoof = AntiSpoof(MODEL_PATH)
 
 
 # 初始化辨識系統
 system = FaceRecognitionSystem(
-    face_det_model_name="scrfd",
-    face_rec_model_name="arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1",
-    inference_host_address="@local",
-    face_det_zoo_url="./model/scrfd.json",
-    face_rec_zoo_url="./model/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1/arcface_mobilefacenet--112x112_quant_hailort_hailo8l_1.json",
-    db_uri="./face_database",
-    table_name="face",
+    face_det_model_name=FACE_DET_MODEL_NAME,
+    face_rec_model_name=FACE_REC_MODEL_NAME,
+    inference_host_address=INFERENCE_HOST_ADDRESS,
+    face_det_zoo_url=FACE_DET_ZOO_URL,
+    face_rec_zoo_url=FACE_REC_ZOO_URL,
+    db_uri=DB_URI,
+    table_name=TABLE_NAME,
 )
 
 # 開啟攝影機
