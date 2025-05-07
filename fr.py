@@ -1,4 +1,6 @@
+import time
 import os
+import queue
 import cv2
 import numpy as np
 from datetime import datetime, timedelta
@@ -44,16 +46,24 @@ system = FaceRecognitionSystem(
     table_name=TABLE_NAME,
 )
 
-attendance_manager = AttendanceManager(SQL_URI)
+punch_queue = queue.Queue()
+attendance_manager = AttendanceManager(SQL_URI, punch_queue)
+attendance_manager.start()
 
 # 開啟攝影機
 picam2 = Picamera2()
 picam2.start()
 
+
 Attendance_time =  datetime.now()
 print("開始即時辨識，按 'n' 鍵新增新臉，'q' 鍵結束")
 
+punch_set = set()
+
+
 while True:
+    start_time = time.time()
+    
     frame = picam2.capture_array()
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     detected_faces = system.face_det_model(rgb_frame)
@@ -94,11 +104,13 @@ while True:
         )
 
     if datetime.now() - Attendance_time > timedelta(seconds=ATTENDANCE_TIME_INTERVAL):
-        for info in face_infos:
-            if info["identity"] != "Unknown":
-                attendance_manager.punch(info["identity"])
+        for name in punch_set:
+            if name != "Unknown":
+                punch_queue.put(name)
+                # attendance_manager.punch(name)
                 Attendance_time = datetime.now()
-                print(f"[打卡] 員工 {info['identity']} 打卡成功！")
+                print(f"[打卡] 員工 {name} put 打卡！")
+        punch_set = set()
 
     # 畫出辨識結果
     for info in face_infos:
@@ -111,6 +123,7 @@ while True:
 
         if np.argmax(pred) == 0 and pred[0][0][0] > ANTISPOOFING_SCORE:
             info["real_face"] = True
+            punch_set.add(info["identity"])
         else:
             info["real_face"] = False
 
@@ -123,11 +136,17 @@ while True:
             color,
             2,
         )
+    
+    end_time = time.time()
+    fps = 1 / (end_time - start_time + 1e-5)
+    cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30),
+    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)    
 
     cv2.imshow("Face Recognition", frame)
 
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
+        attendance_manager.close()
         break
     elif key == ord("n"):
         unknown_faces = [info for info in face_infos if info["identity"] == "Unknown"]
