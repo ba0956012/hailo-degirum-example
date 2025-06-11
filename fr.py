@@ -92,6 +92,12 @@ while True:
         else:
             identity = "Unknown"
             score = 0.0
+        
+        pred = anti_spoof([increased_crop(frame, (x, y, w, h), bbox_inc=1.5)])
+        if np.argmax(pred) == 0 and pred[0][0][0] > ANTISPOOFING_SCORE:
+            real_face = True
+        else:
+            real_face = False
 
         face_infos.append(
             {
@@ -100,6 +106,7 @@ while True:
                 "embedding": embedding,
                 "identity": identity,
                 "identity_score": score,
+                "real_face": real_face
             }
         )
 
@@ -119,13 +126,9 @@ while True:
         color = (0, 255, 0) if info["identity"] != "Unknown" else (0, 0, 255)
         cv2.rectangle(frame, (x, y), (w, h), color, 2)
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        pred = anti_spoof([increased_crop(frame, info["box"], bbox_inc=1.5)])
 
-        if np.argmax(pred) == 0 and pred[0][0][0] > ANTISPOOFING_SCORE:
-            info["real_face"] = True
+        if info["real_face"] = True
             punch_set.add(info["identity"])
-        else:
-            info["real_face"] = False
 
         cv2.putText(
             frame,
