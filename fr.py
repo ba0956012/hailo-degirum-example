@@ -127,7 +127,7 @@ while True:
         cv2.rectangle(frame, (x, y), (w, h), color, 2)
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-        if info["real_face"] = True
+        if info["real_face"]:
             punch_set.add(info["identity"])
 
         cv2.putText(
